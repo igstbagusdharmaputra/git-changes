@@ -42,19 +42,11 @@ type BodyDiff struct {
 	After         []byte
 	ModifiedLines []int
 }
+
 type Path struct {
 	Name          string
 	Type          PathType
 	SymlinkTarget string
-}
-type PathDiff struct {
-	Before Path
-	After  Path
-}
-type FileChange struct {
-	Commits []string
-	Path    PathDiff
-	Body    BodyDiff
 }
 
 func (p Path) EffectivePath() string {
@@ -64,8 +56,19 @@ func (p Path) EffectivePath() string {
 	return p.Name
 }
 
+type PathDiff struct {
+	Before Path
+	After  Path
+}
+
+type FileChange struct {
+	Commits []string
+	Path    PathDiff
+	Body    BodyDiff
+}
+
 func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
-	out, err := cmd("-c", "git", "log", "--reverse", "--no-merges", "--format=%H", "--name-status", cr.String())
+	out, err := cmd("log", "--reverse", "--no-merges", "--format=%H", "--name-status", cr.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the list of modified files from git: %w", err)
 	}
@@ -92,11 +95,11 @@ func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
 		status := FileStatus(parts[0][0])
 		srcPath := parts[1]
 		dstPath := parts[len(parts)-1]
-		// log.Debug().Str("path", dstPath).Str("commit", commit).Str("change", parts[0]).Msg("Git file change")
+		log.Debug().Str("path", dstPath).Str("commit", commit).Str("change", parts[0]).Msg("Git file change")
 
 		// ignore directories
 		if isDir, _ := isDirectoryPath(dstPath); isDir {
-			// log.Debug().Str("path", dstPath).Msg("Skipping directory entry change")
+			log.Debug().Str("path", dstPath).Msg("Skipping directory entry change")
 			continue
 		}
 
@@ -140,7 +143,7 @@ func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
 		}
 		change.Commits = append(change.Commits, commit)
 	}
-	// log.Debug().Int("changes", len(changes)).Msg("Parsed git log")
+	log.Debug().Int("changes", len(changes)).Msg("Parsed git log")
 
 	for _, change := range changes {
 		lastCommit := change.Commits[len(change.Commits)-1]
@@ -181,14 +184,7 @@ func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
 
 	return changes, nil
 }
-func isDirectoryPath(path string) (bool, error) {
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
 
-	return fileInfo.IsDir(), err
-}
 func getChangeByPath(changes []*FileChange, fpath string) *FileChange {
 	for _, c := range changes {
 		if c.Path.After.Name == fpath {
@@ -197,11 +193,29 @@ func getChangeByPath(changes []*FileChange, fpath string) *FileChange {
 	}
 	return nil
 }
+
+func getModifiedLines(cmd CommandRunner, commits []string, fpath string) ([]int, error) {
+	log.Debug().Strs("commits", commits).Str("path", fpath).Msg("Getting list of modified lines")
+	lines, err := Blame(cmd, fpath)
+	if err != nil {
+		return nil, err
+	}
+
+	modLines := make([]int, 0, len(lines))
+	for _, line := range lines {
+		if !slices.Contains(commits, line.Commit) {
+			continue
+		}
+		modLines = append(modLines, line.Line)
+	}
+	return modLines, nil
+}
+
 func getTypeForPath(cmd CommandRunner, commit, fpath string) PathType {
-	args := []string{"-c", "git", "ls-tree", "--format=%(objectmode) %(objecttype) %(path)", commit, fpath}
+	args := []string{"ls-tree", "--format=%(objectmode) %(objecttype) %(path)", commit, fpath}
 	out, err := cmd(args...)
 	if err != nil {
-		// log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
+		log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
 		return Missing
 	}
 
@@ -247,6 +261,17 @@ func resolveSymlinkTarget(cmd CommandRunner, commit, fpath string, typ PathType)
 	stype := getTypeForPath(cmd, commit, spath)
 	return resolveSymlinkTarget(cmd, commit, spath, stype)
 }
+
+func getContentAtCommit(cmd CommandRunner, commit, fpath string) []byte {
+	args := []string{"cat-file", "blob", fmt.Sprintf("%s:%s", commit, fpath)}
+	body, err := cmd(args...)
+	if err != nil {
+		log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
+		return nil
+	}
+	return body
+}
+
 func CountLines(body []byte) (lines []int) {
 	var line int
 	s := bufio.NewScanner(bytes.NewReader(body))
@@ -256,29 +281,12 @@ func CountLines(body []byte) (lines []int) {
 	}
 	return lines
 }
-func getModifiedLines(cmd CommandRunner, commits []string, fpath string) ([]int, error) {
-	// log.Debug().Strs("commits", commits).Str("path", fpath).Msg("Getting list of modified lines")
-	lines, err := Blame(cmd, fpath)
+
+func isDirectoryPath(path string) (bool, error) {
+	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	modLines := make([]int, 0, len(lines))
-	for _, line := range lines {
-		if !slices.Contains(commits, line.Commit) {
-			continue
-		}
-		modLines = append(modLines, line.Line)
-	}
-	return modLines, nil
-}
-
-func getContentAtCommit(cmd CommandRunner, commit, fpath string) []byte {
-	args := []string{"-c", "git", "cat-file", "blob", fmt.Sprintf("%s:%s", commit, fpath)}
-	body, err := cmd(args...)
-	if err != nil {
-		log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
-		return nil
-	}
-	return body
+	return fileInfo.IsDir(), err
 }
