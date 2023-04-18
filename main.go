@@ -7,8 +7,6 @@ import (
 )
 
 func main() {
-	commitRange, _ := git.CommitRange(git.RunGit, "main")
-	fmt.Println(commitRange)
-	changes, _ := git.Changes(git.RunGit, commitRange)
-	fmt.Println(changes)
+	files, _ := git.ChangedFiles(git.RunGit, "HEAD ^origin/main")
+	fmt.Printf("main %s", files)
 }
