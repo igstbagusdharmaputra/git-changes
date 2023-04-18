@@ -25,8 +25,9 @@ type CommandRunner func(args ...string) ([]byte, error)
 func RunGit(args ...string) (content []byte, err error) {
 	// log.Debug().Strs("args", args).Msg("Running git command")
 
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("git %s", args[0]))
+	cmd := exec.Command("bash", args...)
 
+	fmt.Println(cmd)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -37,12 +38,13 @@ func RunGit(args ...string) (content []byte, err error) {
 		}
 		return nil, err
 	}
+
 	return stdout.Bytes(), nil
 }
 
 func Blame(cmd CommandRunner, path string) (lines LineBlames, err error) {
 	// log.Debug().Str("path", path).Msg("Running git blame")
-	output, err := cmd("blame", "--line-porcelain", "--", path)
+	output, err := cmd("-c", "git", "blame", "--line-porcelain", "--", path)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +93,7 @@ func Blame(cmd CommandRunner, path string) (lines LineBlames, err error) {
 }
 
 func HeadCommit(cmd CommandRunner) (string, error) {
-	commit, err := cmd("rev-parse", "--verify", "HEAD")
+	commit, err := cmd("-c", "git", "rev-parse", "--verify", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -111,7 +113,7 @@ func (gcr CommitRangeResults) String() string {
 func CommitRange(cmd CommandRunner, baseBranch string) (CommitRangeResults, error) {
 	cr := CommitRangeResults{Commits: []string{}}
 
-	out, err := cmd("log", "--format=%H", "--no-abbrev-commit", "--reverse", fmt.Sprintf("HEAD ^origin/%s", baseBranch))
+	out, err := cmd("-c", "git", "log", "--format=%H", "--no-abbrev-commit", "--reverse", fmt.Sprintf("HEAD ^origin/%s", baseBranch))
 	if err != nil {
 
 		return cr, err
@@ -136,7 +138,7 @@ func CommitRange(cmd CommandRunner, baseBranch string) (CommitRangeResults, erro
 }
 
 func CurrentBranch(cmd CommandRunner) (string, error) {
-	commit, err := cmd("rev-parse", "--abbrev-ref", "HEAD")
+	commit, err := cmd("-c", "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -144,7 +146,7 @@ func CurrentBranch(cmd CommandRunner) (string, error) {
 }
 
 func CommitMessage(cmd CommandRunner, sha string) (string, error) {
-	msg, err := cmd("show", "-s", "--format=%B", sha)
+	msg, err := cmd("-c", "git", "show", "-s", "--format=%B", sha)
 	if err != nil {
 		return "", err
 	}
