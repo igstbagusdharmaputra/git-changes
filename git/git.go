@@ -25,11 +25,14 @@ type FileBlames map[string]LineBlames
 type CommandRunner func(args ...string) ([]byte, error)
 
 func RunGit(args ...string) (content []byte, err error) {
-	log.Debug().Strs("args", args).Msg("Running git command")
-	cmd := exec.Command("git", args...)
+	// log.Debug().Strs("args", args).Msg("Running git command")
+
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("git %s", args[0]))
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+
 	if err = cmd.Run(); err != nil {
 		if stderr.Len() > 0 {
 			return nil, errors.New(stderr.String())
@@ -110,8 +113,9 @@ func (gcr CommitRangeResults) String() string {
 func CommitRange(cmd CommandRunner, baseBranch string) (CommitRangeResults, error) {
 	cr := CommitRangeResults{Commits: []string{}}
 
-	out, err := cmd("log", "--format=%H", "--no-abbrev-commit", "--reverse", fmt.Sprintf("%s..HEAD", baseBranch))
+	out, err := cmd("log", "--format=%H", "--no-abbrev-commit", "--reverse", fmt.Sprintf("HEAD ^origin/%s", baseBranch))
 	if err != nil {
+
 		return cr, err
 	}
 
