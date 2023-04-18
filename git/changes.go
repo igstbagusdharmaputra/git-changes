@@ -65,6 +65,7 @@ func (p Path) EffectivePath() string {
 }
 
 func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
+	fmt.Println(cr.String())
 	out, err := cmd("log", "--reverse", "--no-merges", "--format=%H", "--name-status", cr.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the list of modified files from git: %w", err)
@@ -92,11 +93,11 @@ func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
 		status := FileStatus(parts[0][0])
 		srcPath := parts[1]
 		dstPath := parts[len(parts)-1]
-		log.Debug().Str("path", dstPath).Str("commit", commit).Str("change", parts[0]).Msg("Git file change")
+		// log.Debug().Str("path", dstPath).Str("commit", commit).Str("change", parts[0]).Msg("Git file change")
 
 		// ignore directories
 		if isDir, _ := isDirectoryPath(dstPath); isDir {
-			log.Debug().Str("path", dstPath).Msg("Skipping directory entry change")
+			// log.Debug().Str("path", dstPath).Msg("Skipping directory entry change")
 			continue
 		}
 
@@ -140,7 +141,7 @@ func Changes(cmd CommandRunner, cr CommitRangeResults) ([]*FileChange, error) {
 		}
 		change.Commits = append(change.Commits, commit)
 	}
-	log.Debug().Int("changes", len(changes)).Msg("Parsed git log")
+	// log.Debug().Int("changes", len(changes)).Msg("Parsed git log")
 
 	for _, change := range changes {
 		lastCommit := change.Commits[len(change.Commits)-1]
@@ -201,7 +202,7 @@ func getTypeForPath(cmd CommandRunner, commit, fpath string) PathType {
 	args := []string{"ls-tree", "--format=%(objectmode) %(objecttype) %(path)", commit, fpath}
 	out, err := cmd(args...)
 	if err != nil {
-		log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
+		// log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
 		return Missing
 	}
 
@@ -257,7 +258,7 @@ func CountLines(body []byte) (lines []int) {
 	return lines
 }
 func getModifiedLines(cmd CommandRunner, commits []string, fpath string) ([]int, error) {
-	log.Debug().Strs("commits", commits).Str("path", fpath).Msg("Getting list of modified lines")
+	// log.Debug().Strs("commits", commits).Str("path", fpath).Msg("Getting list of modified lines")
 	lines, err := Blame(cmd, fpath)
 	if err != nil {
 		return nil, err
@@ -277,7 +278,7 @@ func getContentAtCommit(cmd CommandRunner, commit, fpath string) []byte {
 	args := []string{"cat-file", "blob", fmt.Sprintf("%s:%s", commit, fpath)}
 	body, err := cmd(args...)
 	if err != nil {
-		log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
+		// log.Debug().Err(err).Strs("args", args).Msg("git command returned an error")
 		return nil
 	}
 	return body

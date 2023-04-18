@@ -8,8 +8,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"github.com/rs/zerolog/log"
 )
 
 type LineBlame struct {
@@ -43,7 +41,7 @@ func RunGit(args ...string) (content []byte, err error) {
 }
 
 func Blame(cmd CommandRunner, path string) (lines LineBlames, err error) {
-	log.Debug().Str("path", path).Msg("Running git blame")
+	// log.Debug().Str("path", path).Msg("Running git blame")
 	output, err := cmd("blame", "--line-porcelain", "--", path)
 	if err != nil {
 		return nil, err
@@ -126,7 +124,7 @@ func CommitRange(cmd CommandRunner, baseBranch string) (CommitRangeResults, erro
 				cr.From = line
 			}
 			cr.To = line
-			log.Debug().Str("commit", line).Msg("Found commit to scan")
+			// log.Debug().Str("commit", line).Msg("Found commit to scan")
 		}
 	}
 
