@@ -2,33 +2,31 @@ package git
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-func gitRoot(cmd CommandRunner) (string, error) {
-
-	out, err := cmd("rev-parse", "--show-toplevel")
+func gitRoot() string {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	dat, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to  show toplevel from git: %w", err)
+		die("Could not find git root: %s", err)
 	}
-	dat := out
 
-	return strings.TrimSpace(string(dat)), nil
+	return strings.TrimSpace(string(dat))
 }
 
-func ChangedFiles(cmd CommandRunner, commitRange string) ([]string, error) {
-	root, _ := gitRoot(cmd)
+func ChangedFiles(commitRange string) []string {
+	root := gitRoot()
 
-	out, err := cmd("diff-tree", "--no-commit-id", "--name-only", "-r", commitRange)
+	cmd := exec.Command("git", "diff-tree", "--no-commit-id", "--name-only", "-r", commitRange)
+	fmt.Println(cmd)
+	dat, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the list of modified files from git: %w", err)
+		die("Could not run git diff-tree: %v", err)
 	}
-
-	dat := out
-
 	files := strings.Split(string(dat), "\n")
-
 	var res []string
 	for _, f := range files {
 		f = strings.TrimSpace(f)
@@ -37,5 +35,7 @@ func ChangedFiles(cmd CommandRunner, commitRange string) ([]string, error) {
 		}
 		res = append(res, filepath.Join(root, f))
 	}
-	return res, nil
+	return res
 }
+
+func die(s string, i ...interface{}) { panic(fmt.Sprintf(s, i...)) }

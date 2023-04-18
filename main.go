@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	files, _ := git.ChangedFiles(git.RunGit, "HEAD ^origin/main")
-	fmt.Printf("main %s", files)
+	files := git.ChangedFiles("main")
+	fmt.Println(files)
 }
