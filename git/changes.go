@@ -37,5 +37,4 @@ func ChangedFiles(commitRange string) []string {
 	}
 	return res
 }
-
 func die(s string, i ...interface{}) { panic(fmt.Sprintf(s, i...)) }
